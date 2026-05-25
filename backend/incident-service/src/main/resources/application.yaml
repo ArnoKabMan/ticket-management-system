@@ -1,3 +1,15 @@
 spring:
   application:
     name: ticket-management-system
+  datasource:
+    url: jdbc:postgresql://localhost:5332/incident_db
+    username: incident_user
+    password: incident_pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
