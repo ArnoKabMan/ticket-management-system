@@ -6,12 +6,12 @@ import org.arnoproject.ticketmanagementsystem.dto.TicketRequest;
 import org.arnoproject.ticketmanagementsystem.dto.TicketResponse;
 import org.arnoproject.ticketmanagementsystem.entity.Ticket;
 import org.arnoproject.ticketmanagementsystem.entity.User;
+import org.arnoproject.ticketmanagementsystem.enums.AuditAction;
 import org.arnoproject.ticketmanagementsystem.enums.Role;
 import org.arnoproject.ticketmanagementsystem.enums.TicketStatus;
 import org.arnoproject.ticketmanagementsystem.mapper.TicketMapper;
 import org.arnoproject.ticketmanagementsystem.repository.TicketRepository;
 import org.arnoproject.ticketmanagementsystem.repository.UserRepository;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,7 +25,7 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketMapper ticketMapper;
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
+    private final AuditLogService auditLogService;
 
     public TicketResponse createTicket(TicketRequest request, User currentUser) {
         String ticketNumber = "TKT-" + System.currentTimeMillis();
@@ -45,6 +45,10 @@ public class TicketService {
                 .build();
 
         ticketRepository.save(ticket);
+
+        //log
+        auditLogService.log(ticket, AuditAction.TICKET_CREATED,
+                currentUser, null, TicketStatus.CREATED.name());
         return ticketMapper.toResponse(ticket);
     }
 
@@ -62,10 +66,11 @@ public class TicketService {
         return ticketMapper.toResponseList(ticketRepository.findByCreatedBy(currentUser));
     }
 
-    public TicketResponse updateTicket(Long id, TicketRequest request) {
+    public TicketResponse updateTicket(Long id, TicketRequest request, User currentUser) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
+        String oldValue = ticket.getStatus().name();
         ticket.setIssueType(request.getIssueType());
         ticket.setPriority(request.getPriority());
         ticket.setDescription(request.getDescription());
@@ -75,13 +80,21 @@ public class TicketService {
         ticket.setUpdatedAt(LocalDateTime.now());
 
         ticketRepository.save(ticket);
+
+        //log
+        auditLogService.log(ticket, AuditAction.TICKET_UPDATED,
+                currentUser, oldValue, ticket.getStatus().name());
         return ticketMapper.toResponse(ticket);
     }
 
     // in TicketService.java
-    public void deleteTicket(Long id) {
+    public void deleteTicket(Long id, User currentUser) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        //log
+        auditLogService.log(ticket, AuditAction.TICKET_DELETED,
+                currentUser, ticket.getStatus().name(), null);
         ticketRepository.delete(ticket);
     }
     public TicketResponse assignTicket(AssignTicketRequest request) {
@@ -95,11 +108,17 @@ public class TicketService {
             throw new RuntimeException("User is not a support officer");
         }
 
+        String oldValue = ticket.getStatus().name();
+
         ticket.setAssignedTo(officer);
         ticket.setStatus(TicketStatus.ASSIGNED);
         ticket.setUpdatedAt(LocalDateTime.now());
 
         ticketRepository.save(ticket);
+
+        //log
+        auditLogService.log(ticket, AuditAction.TICKET_ASSIGNED,
+                officer, oldValue, TicketStatus.ASSIGNED.name());
         return ticketMapper.toResponse(ticket);
     }
 }

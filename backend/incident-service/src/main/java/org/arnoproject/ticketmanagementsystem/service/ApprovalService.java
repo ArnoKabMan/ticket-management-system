@@ -8,6 +8,7 @@ import org.arnoproject.ticketmanagementsystem.entity.ApprovalRequest;
 import org.arnoproject.ticketmanagementsystem.entity.Ticket;
 import org.arnoproject.ticketmanagementsystem.entity.User;
 import org.arnoproject.ticketmanagementsystem.enums.ApprovalStatus;
+import org.arnoproject.ticketmanagementsystem.enums.AuditAction;
 import org.arnoproject.ticketmanagementsystem.enums.TicketStatus;
 import org.arnoproject.ticketmanagementsystem.mapper.ApprovalMapper;
 import org.arnoproject.ticketmanagementsystem.repository.ApprovalRequestRepository;
@@ -25,8 +26,10 @@ public class ApprovalService {
     private final ApprovalRequestRepository approvalRequestRepository;
     private final TicketRepository ticketRepository;
     private final ApprovalMapper approvalMapper;
+    private final AuditLogService auditLogService;
 
     public ApprovalResponse requestApproval(ApprovalRequestDto request, User currentUser) {
+
         Ticket ticket = ticketRepository.findById(request.getTicketId())
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
@@ -53,6 +56,10 @@ public class ApprovalService {
         ticket.setUpdatedAt(LocalDateTime.now());
         ticketRepository.save(ticket);
 
+        //log
+        auditLogService.log(ticket, AuditAction.APPROVAL_REQUESTED,
+                currentUser, TicketStatus.IN_PROGRESS.name(),
+                TicketStatus.PENDING_APPROVAL.name());
         return approvalMapper.toResponse(approvalRequest);
     }
 
@@ -78,6 +85,11 @@ public class ApprovalService {
         ticket.setUpdatedAt(LocalDateTime.now());
         ticketRepository.save(ticket);
 
+        //log
+        auditLogService.log(ticket, AuditAction.APPROVAL_APPROVED,
+                currentUser, TicketStatus.PENDING_APPROVAL.name(),
+                TicketStatus.APPROVED.name());
+
         return approvalMapper.toResponse(approvalRequest);
     }
 
@@ -102,6 +114,11 @@ public class ApprovalService {
         ticket.setStatus(TicketStatus.REJECTED);
         ticket.setUpdatedAt(LocalDateTime.now());
         ticketRepository.save(ticket);
+
+        //log
+        auditLogService.log(ticket, AuditAction.APPROVAL_REJECTED,
+                currentUser, TicketStatus.PENDING_APPROVAL.name(),
+                TicketStatus.REJECTED.name());
 
         return approvalMapper.toResponse(approvalRequest);
     }

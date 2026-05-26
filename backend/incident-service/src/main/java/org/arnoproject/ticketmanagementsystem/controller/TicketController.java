@@ -49,15 +49,17 @@ public class TicketController {
     @PreAuthorize("hasAnyRole('SUPPORT_OFFICER','SUPERVISORT','ADMIN')")
     public ResponseEntity<TicketResponse> updateTicket(
             @PathVariable Long id,
-            @RequestBody TicketRequest request) {
-        return ResponseEntity.ok(ticketService.updateTicket(id, request));
+            @RequestBody TicketRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(ticketService.updateTicket(id, request, currentUser));
     }
 
     // Only ADMIN can delete
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteTicket(@PathVariable Long id) {
-        ticketService.deleteTicket(id);
+    public ResponseEntity<Void> deleteTicket(@PathVariable Long id,
+                                             @AuthenticationPrincipal User currentUser) {
+        ticketService.deleteTicket(id, currentUser);
         return ResponseEntity.noContent().build();
     }
 
